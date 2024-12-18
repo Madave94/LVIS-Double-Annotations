@@ -29,6 +29,6 @@ folder `original_annos_v1.0`. Then the processing script can be run from the pro
 _Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)_. 2019. 
 [Link](https://openaccess.thecvf.com/content_CVPR_2019/html/Gupta_LVIS_A_Dataset_for_Large_Vocabulary_Instance_Segmentation_CVPR_2019_paper.html)
 
-<a id="2">[2]</a> Tschirschwitz, David and Rodehorst Volker . "Label Convergence: Defining an Upper Performance Bound in 
+<a id="2">[2]</a> Tschirschwitz David and Rodehorst Volker . "Label Convergence: Defining an Upper Performance Bound in 
 Object Recognition through Contradictory Annotations" _Proceedings of the IEEE/CVF Winter Conference on Applications of 
 Computer Vision (WACV)_. 2025. [Link](https://arxiv.org/abs/2409.09412)
