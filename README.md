@@ -16,9 +16,10 @@ The annotations are further used in a WACV publication [[2]](#2) analyzing the C
 ## How to use it?
 
 **[Download the double annotations here.](processed_double_annos_v1.0/lvis_v1.0_val_doubly_annos.json)** They are in the folder 
-`processed_double_annos_v1.0`.
+`processed_double_annos_v1.0`. The **corresponding images** for the double annotated data are the
+[COCO 2017 Val images](https://cocodataset.org/#download).
 
-The scripts are just here for reproducability, in order to run them you will need to download the 
+The script is just here for reproducability, in order to run it you will need to download the 
 [validation annotations](https://www.lvisdataset.org/dataset), rename them to `lvis_v1.0_val.json` and put them into the
 folder `original_annos_v1.0`. Then the processing script can be run from the project root `python processing_script.py`.
 
