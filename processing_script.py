@@ -10,9 +10,18 @@ def load_json(path):
     return data
 
 def update_to_lvis_final(data, old_to_new_id_mapping, new_categories, rater_id):
-    # Rename image key "not_exhaustive" in v0.5 with key "not_exhaustive_category_ids" in v1.0
+    # Rename and map image key "not_exhaustive" in v0.5 with key "not_exhaustive_category_ids" in v1.0, and map neg_category_ids
     for image in data["images"]:
-        image["not_exhaustive_category_ids"] = image.pop("not_exhaustive")
+        image["not_exhaustive_category_ids"] = sorted(list(set(
+            old_to_new_id_mapping[cid]
+            for cid in image.pop("not_exhaustive")
+            if cid in old_to_new_id_mapping
+        )))
+        image["neg_category_ids"] = sorted(list(set(
+            old_to_new_id_mapping[cid]
+            for cid in image["neg_category_ids"]
+            if cid in old_to_new_id_mapping
+        )))
     # Filter annotations to include only those with correct categories
     # Also add a generic rater ID
     count = defaultdict(list)
@@ -87,9 +96,19 @@ if __name__ == "__main__":
         file_name_to_image_id[image["file_name"]] = image["id"]
 
     # 2) find the mapping from r1 image ids to r2 image ids
-    r2_id_to_r1_id =  {}
+    r2_id_to_r1_id = {}
+    r2_not_ex_by_r1_id = {}
     for image in lvis_r2_updated["images"]:
-        r2_id_to_r1_id[image["id"]] = file_name_to_image_id[image["file_name"]]
+        r1_id = file_name_to_image_id[image["file_name"]]
+        r2_id_to_r1_id[image["id"]] = r1_id
+        r2_not_ex_by_r1_id[r1_id] = image["not_exhaustive_category_ids"]
+
+    for image in lvis_r1_updated["images"]:
+        r1_not_ex = image["not_exhaustive_category_ids"]
+        r2_not_ex = r2_not_ex_by_r1_id[image["id"]]
+        image["not_exhaustive_category_ids_r1"] = r1_not_ex
+        image["not_exhaustive_category_ids_r2"] = r2_not_ex
+        image["not_exhaustive_category_ids"] = sorted(list(set(r1_not_ex) | set(r2_not_ex)))
 
     # 3) check the annotation id number, to start counting where r1 does not use the annotation ids anymore
     # this is to prevent that any annotation id is used twice

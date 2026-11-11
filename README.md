@@ -9,7 +9,7 @@ The annotations are further used in a WACV publication [[2]](#2) analyzing the C
 ## What does this do?
 
 1. Load the v0.5 double annotations and the v1.0 single annotations using validation subset.
-2. Find the mapping from the 1723 classes in v0.5 to the final 1203 classes in v1.0.
+2. Find the mapping from the 1723 classes in v0.5 to the final 1203 classes in v1.0. Do the mapping for the `neg_category_ids`, `not_exhaustive_category_ids` (both inside the images) and the classes inside the annotations
 3. Ensure that image_ids and annotation_ids between the double annotations don't overlap.
 4. Add generic rater identification to annotations and image.
 
