@@ -1,8 +1,91 @@
 import json
 import os
-from collections import defaultdict
+from collections import Counter, defaultdict
 from copy import deepcopy
 import random
+
+ROTATION_TRANSFORMS = ("id", "rot90cw_norm", "rot90ccw_norm", "rot180")
+
+def transform_polygon(poly, width, height, transform):
+    if transform == "id":
+        return poly
+    out = []
+    for i in range(0, len(poly), 2):
+        x, y = poly[i], poly[i + 1]
+        u, v = x / width, y / height
+        if transform == "rot90cw_norm":
+            nx, ny = (1.0 - v) * width, u * height
+        elif transform == "rot90ccw_norm":
+            nx, ny = v * width, (1.0 - u) * height
+        elif transform == "rot180":
+            nx, ny = width - x, height - y
+        else:
+            raise ValueError(f"Unknown transform: {transform}")
+        out.append(round(nx, 2))
+        out.append(round(ny, 2))
+    return out
+
+def recompute_bbox_and_area(segmentation):
+    xs = [x for poly in segmentation for x in poly[0::2]]
+    ys = [y for poly in segmentation for y in poly[1::2]]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    bbox = [round(x_min, 2), round(y_min, 2), round(x_max - x_min, 2), round(y_max - y_min, 2)]
+    area = 0.0
+    for poly in segmentation:
+        px = poly[0::2]
+        py = poly[1::2]
+        n = len(px)
+        s = 0.0
+        for i in range(n):
+            j = (i + 1) % n
+            s += px[i] * py[j] - px[j] * py[i]
+        area += 0.5 * abs(s)
+    return bbox, round(area, 2)
+
+def detect_image_rotations(r2_data, v1_data, tol=0.05):
+    img_dims = {im["id"]: (im["width"], im["height"]) for im in r2_data["images"]}
+    v1_polys = defaultdict(list)
+    for ann in v1_data["annotations"]:
+        if ann["segmentation"]:
+            v1_polys[(ann["image_id"], ann["category_id"], len(ann["segmentation"][0]))].append(ann["segmentation"][0])
+
+    r2_by_img = defaultdict(list)
+    for ann in r2_data["annotations"]:
+        if ann["segmentation"]:
+            r2_by_img[ann["image_id"]].append(ann)
+
+    rotations = {}
+    for img_id, anns in r2_by_img.items():
+        width, height = img_dims[img_id]
+        for t in ROTATION_TRANSFORMS:
+            matched = False
+            for ann in anns:
+                seg0 = ann["segmentation"][0]
+                cands = v1_polys.get((img_id, ann["category_id"], len(seg0)))
+                if not cands:
+                    continue
+                t_poly = transform_polygon(seg0, width, height, t)
+                for cand in cands:
+                    if max(abs(a - b) for a, b in zip(t_poly, cand)) <= tol:
+                        matched = True
+                        break
+                if matched:
+                    break
+            if matched:
+                if t != "id":
+                    rotations[img_id] = t
+                break
+    return rotations
+
+def apply_image_rotations(data, rotations):
+    img_dims = {im["id"]: (im["width"], im["height"]) for im in data["images"]}
+    for ann in data["annotations"]:
+        t = rotations.get(ann["image_id"])
+        if t:
+            width, height = img_dims[ann["image_id"]]
+            ann["segmentation"] = [transform_polygon(p, width, height, t) for p in ann["segmentation"]]
+            ann["bbox"], ann["area"] = recompute_bbox_and_area(ann["segmentation"])
 
 def load_json(path):
     with open(path, "r") as f:
@@ -86,6 +169,12 @@ if __name__ == "__main__":
     # Update the annotations to align with LVIS v1.0
     lvis_r1_updated = update_to_lvis_final(lvis_r1, old_to_new_id_category_mapping, lvis_original["categories"], "r1")
     lvis_r2_updated = update_to_lvis_final(lvis_r2, old_to_new_id_category_mapping, lvis_original["categories"], "r2")
+
+    # Detect and fix EXIF-rotated v0.5 annotations using LVIS v1.0 reference polygons
+    image_rotations = detect_image_rotations(lvis_r2_updated, lvis_original)
+    print(f"Detected {len(image_rotations)} misoriented images: {dict(Counter(image_rotations.values()))}")
+    apply_image_rotations(lvis_r1_updated, image_rotations)
+    apply_image_rotations(lvis_r2_updated, image_rotations)
 
     # merge image and instance from r1 and r2
     # 1) find the mapping from file_name to image_id
